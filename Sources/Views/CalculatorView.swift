@@ -9,15 +9,17 @@ struct CalculatorView: View {
     @State private var selectedTier: ProductTier = .midRange
     @State private var selectedChannel: ChannelType = .normal
     
-    // 折叠状态控制
-    @State private var isTierExpanded: Bool = true
-    @State private var isChannelExpanded: Bool = true
+    // 定义双列网格布局 (固定两列，自动伸缩)
+    let gridColumns = [
+        GridItem(.flexible(), spacing: 10),
+        GridItem(.flexible(), spacing: 10)
+    ]
     
     var body: some View {
         GeometryReader { geometry in
             HStack(spacing: 0) {
                 // MARK: - 左侧控制台
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 20) {
                     
                     // 1. 价格输入组
                     VStack(alignment: .leading, spacing: 12) {
@@ -45,36 +47,34 @@ struct CalculatorView: View {
                     
                     Divider()
                     
-                    // 2. 机型档次 (可折叠)
-                    DisclosureGroup(isExpanded: $isTierExpanded) {
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 85))], spacing: 8) {
+                    // 2. 机型档次 (双列布局)
+                    VStack(alignment: .leading, spacing: 10) {
+                        Label("机型档次", systemImage: "air.conditioner.horizontal")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        LazyVGrid(columns: gridColumns, spacing: 10) {
                             ForEach(ProductTier.allCases) { tier in
                                 SelectableButton(title: tier.rawValue, isSelected: selectedTier == tier, color: .gray) {
                                     withAnimation(.snappy) { selectedTier = tier }
                                 }
                             }
                         }
-                        .padding(.top, 8)
-                    } label: {
-                        Label("机型档次", systemImage: "air.conditioner.horizontal")
-                            .font(.headline)
-                            .foregroundColor(.primary)
                     }
                     
-                    // 3. 销售渠道 (可折叠)
-                    DisclosureGroup(isExpanded: $isChannelExpanded) {
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 110))], spacing: 8) {
+                    // 3. 销售渠道 (双列布局)
+                    VStack(alignment: .leading, spacing: 10) {
+                        Label("销售渠道", systemImage: "network")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        LazyVGrid(columns: gridColumns, spacing: 10) {
                             ForEach(ChannelType.allCases) { channel in
                                 SelectableButton(title: channel.rawValue, isSelected: selectedChannel == channel, color: .orange) {
                                     withAnimation(.snappy) { selectedChannel = channel }
                                 }
                             }
                         }
-                        .padding(.top, 8)
-                    } label: {
-                        Label("销售渠道", systemImage: "network")
-                            .font(.headline)
-                            .foregroundColor(.primary)
                     }
                     
                     Spacer()
@@ -106,9 +106,9 @@ struct CalculatorView: View {
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                         
-                        // 修改点：只显示纯数字，去掉了 ¥ 符号
+                        // 纯数字显示 (无货币符号)
                         Text(result.groupPrice, format: .number.precision(.fractionLength(2)))
-                            .font(.system(size: 60, weight: .heavy, design: .rounded)) // 稍微调大了字号
+                            .font(.system(size: 60, weight: .heavy, design: .rounded))
                             .contentTransition(.numericText())
                             .foregroundColor(.primary)
                         
@@ -177,7 +177,7 @@ struct CalculatorView: View {
     }
 }
 
-// UI 组件
+// UI 组件 (保持不变)
 struct SelectableButton: View {
     let title: String
     let isSelected: Bool
@@ -189,14 +189,14 @@ struct SelectableButton: View {
             Text(title)
                 .font(.system(size: 13, weight: isSelected ? .semibold : .regular, design: .rounded))
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
+                .padding(.vertical, 10) // 稍微增加高度以适应两列
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .background(
-            RoundedRectangle(cornerRadius: 6)
+            RoundedRectangle(cornerRadius: 8)
                 .fill(isSelected ? color.opacity(0.15) : Color(nsColor: .controlBackgroundColor))
-                .overlay(RoundedRectangle(cornerRadius: 6).stroke(isSelected ? color : Color.gray.opacity(0.2), lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(isSelected ? color : Color.gray.opacity(0.2), lineWidth: 1))
         )
         .foregroundColor(isSelected ? color : .primary)
     }
