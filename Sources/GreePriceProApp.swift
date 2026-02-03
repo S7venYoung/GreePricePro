@@ -8,11 +8,11 @@ struct GreePriceProApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                // 【核心修改】移除所有 frame 限制
-                // 让窗口尺寸完全等于 ContentView 的尺寸 (即 CalculatorView + padding)
         }
-        .windowStyle(.titleBar)
-        .windowResizability(.contentSize) // 关键：自动贴合内容大小
+        // 【核心修改】隐藏标题栏，并且让内容充满整个窗口
+        .windowStyle(.hiddenTitleBar)
+        // 允许通过背景拖拽窗口 (macOS 14+ 特性，旧版本需要下文的手动支持)
+        .windowResizability(.contentSize)
         
         MenuBarExtra("格力报价", systemImage: "yen.circle.fill") {
             Button("显示主面板") { NSApp.activate(ignoringOtherApps: true); if let window = NSApp.windows.first { window.makeKeyAndOrderFront(nil); window.deminiaturize(nil) } }
