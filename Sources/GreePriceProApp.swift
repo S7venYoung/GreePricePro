@@ -8,10 +8,11 @@ struct GreePriceProApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                // 不设置任何 frame，让 SwiftUI 根据 ContentView 的大小自动决定窗口大小
+                // 【核心修改】移除所有 frame 限制
+                // 让窗口尺寸完全等于 ContentView 的尺寸 (即 CalculatorView + padding)
         }
         .windowStyle(.titleBar)
-        .windowResizability(.contentSize) // 关键：窗口大小由内容决定
+        .windowResizability(.contentSize) // 关键：自动贴合内容大小
         
         MenuBarExtra("格力报价", systemImage: "yen.circle.fill") {
             Button("显示主面板") { NSApp.activate(ignoringOtherApps: true); if let window = NSApp.windows.first { window.makeKeyAndOrderFront(nil); window.deminiaturize(nil) } }
@@ -21,7 +22,7 @@ struct GreePriceProApp: App {
     }
 }
 
-// 图标生成 (保持简化版)
+// 图标生成 (保持不变)
 struct AppIconGenerator {
     static func applyBrandedIcon() {
         let size = NSSize(width: 512, height: 512); let image = NSImage(size: size); image.lockFocus()
