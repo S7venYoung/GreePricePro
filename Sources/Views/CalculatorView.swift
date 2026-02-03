@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - 风格修饰符
+// MARK: - Style Modifiers
 struct LiquidGlassCard: ViewModifier {
     var cornerRadius: CGFloat = 20
     func body(content: Content) -> some View {
@@ -8,14 +8,28 @@ struct LiquidGlassCard: ViewModifier {
             .background(.ultraThinMaterial)
             .background(Color.white.opacity(0.05))
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous).stroke(LinearGradient(colors: [.white.opacity(0.6), .white.opacity(0.1)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1))
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(
+                        LinearGradient(
+                            colors: [.white.opacity(0.6), .white.opacity(0.1)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+            )
     }
 }
-extension View { func liquidGlassStyle(cornerRadius: CGFloat = 20) -> some View { modifier(LiquidGlassCard(cornerRadius: cornerRadius)) } }
+
+extension View {
+    func liquidGlassStyle(cornerRadius: CGFloat = 20) -> some View {
+        modifier(LiquidGlassCard(cornerRadius: cornerRadius))
+    }
+}
 
 struct CalculatorView: View {
     @ObservedObject var settings: AppSettings
-    // 【核心修改】接收来自 ContentView 的置顶状态绑定
     @Binding var isPinned: Bool
     
     @State private var priceInput: Double? = nil
@@ -24,35 +38,64 @@ struct CalculatorView: View {
     @State private var selectedChannel: ChannelType = .normal
     @State private var showSettings = false
     
+    // 【核心修改】定义焦点状态：0代表价格，1代表优惠
+    @FocusState private var focusedField: Int?
+    
     let gridColumns = [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)]
     
     var body: some View {
         ZStack(alignment: .topTrailing) {
             
-            // === 主内容 ===
+            // === Main Content ===
             HStack(spacing: 0) {
-                // 左侧
+                
+                // === Left Panel ===
                 VStack(alignment: .leading, spacing: 16) {
-                    Spacer().frame(height: 32) // 避让红绿灯
+                    
+                    Spacer().frame(height: 32)
+                    
                     VStack(spacing: 10) {
-                        InputCard(title: "官方指导价", value: $priceInput, color: .primary)
-                        InputCard(title: "团购优惠", value: $groupDiscountInput, color: .indigo)
+                        // 【核心修改】传入焦点ID和绑定
+                        InputCard(
+                            title: "官方指导价",
+                            value: $priceInput,
+                            color: .primary,
+                            focusID: 0,
+                            focusState: $focusedField
+                        )
+                        InputCard(
+                            title: "团购优惠",
+                            value: $groupDiscountInput,
+                            color: .indigo,
+                            focusID: 1,
+                            focusState: $focusedField
+                        )
                     }
                     Divider().overlay(Color.black.opacity(0.05))
                     VStack(alignment: .leading, spacing: 12) {
                         VStack(alignment: .leading, spacing: 6) {
-                            Label("机型档次", systemImage: "air.conditioner.horizontal").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
+                            Label("机型档次", systemImage: "air.conditioner.horizontal")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                            
                             LazyVGrid(columns: gridColumns, spacing: 8) {
                                 ForEach(ProductTier.allCases) { tier in
-                                    GlassButton(title: tier.rawValue, isSelected: selectedTier == tier, color: .blue) { withAnimation(.snappy) { selectedTier = tier } }
+                                    GlassButton(title: tier.rawValue, isSelected: selectedTier == tier, color: .blue) {
+                                        withAnimation(.snappy) { selectedTier = tier }
+                                    }
                                 }
                             }
                         }
                         VStack(alignment: .leading, spacing: 6) {
-                            Label("销售渠道", systemImage: "network").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
+                            Label("销售渠道", systemImage: "network")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                            
                             LazyVGrid(columns: gridColumns, spacing: 8) {
                                 ForEach(ChannelType.allCases) { channel in
-                                    GlassButton(title: channel.rawValue, isSelected: selectedChannel == channel, color: .orange) { withAnimation(.snappy) { selectedChannel = channel } }
+                                    GlassButton(title: channel.rawValue, isSelected: selectedChannel == channel, color: .orange) {
+                                        withAnimation(.snappy) { selectedChannel = channel }
+                                    }
                                 }
                             }
                         }
@@ -62,40 +105,71 @@ struct CalculatorView: View {
                 .padding(20)
                 .frame(width: 230)
                 
-                Rectangle().fill(LinearGradient(colors: [.clear, .black.opacity(0.1), .clear], startPoint: .top, endPoint: .bottom)).frame(width: 1).padding(.vertical, 0)
+                // Vertical Divider
+                Rectangle()
+                    .fill(LinearGradient(colors: [.clear, .black.opacity(0.1), .clear], startPoint: .top, endPoint: .bottom))
+                    .frame(width: 1)
+                    .padding(.vertical, 0)
                 
-                // 右侧
+                // === Right Panel ===
                 VStack(spacing: 0) {
-                    let result = PriceCalculator.calculate(originalPrice: priceInput ?? 0, groupDiscountInput: groupDiscountInput ?? 0, tier: selectedTier, channel: selectedChannel, settings: settings)
-                    let profitMargin = result.subsidyPrice > 0 ? result.actualProfit / result.subsidyPrice : 0
+                    let result = PriceCalculator.calculate(
+                        originalPrice: priceInput ?? 0,
+                        groupDiscountInput: groupDiscountInput ?? 0,
+                        tier: selectedTier,
+                        channel: selectedChannel,
+                        settings: settings
+                    )
                     
-                    Spacer().frame(height: 32) // 对齐顶部
+                    Spacer().frame(height: 32)
+
                     VStack(spacing: 6) {
                         HStack {
                             Text("国补后基准").font(.system(size: 10)).foregroundStyle(.secondary)
-                            Text(result.subsidyPrice, format: .currency(code: "CNY")).font(.system(size: 10, weight: .bold)).monospacedDigit()
+                            Text(result.subsidyPrice, format: .currency(code: "CNY"))
+                                .font(.system(size: 10, weight: .bold)).monospacedDigit()
                         }
-                        .padding(.horizontal, 8).padding(.vertical, 3).background(Color.black.opacity(0.03)).clipShape(Capsule())
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Color.black.opacity(0.03))
+                        .clipShape(Capsule())
                         
-                        Text("跟团到手价").font(.system(size: 13, weight: .medium)).foregroundStyle(.secondary).padding(.top, 4)
+                        Text("跟团到手价")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .padding(.top, 4)
                         
                         Text(result.groupPrice, format: .number.precision(.fractionLength(2)))
                             .font(.system(size: 68, weight: .heavy, design: .rounded))
                             .contentTransition(.numericText())
-                            .foregroundStyle(LinearGradient(colors: [.primary, .primary.opacity(0.85)], startPoint: .top, endPoint: .bottom))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [.primary, .primary.opacity(0.85)],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
                             .shadow(color: .white.opacity(0.8), radius: 1, x: 0, y: 1)
-                            .lineLimit(1).minimumScaleFactor(0.5).padding(.horizontal)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.5)
+                            .padding(.horizontal)
                         
                         HStack(spacing: 0) {
                             ProfitCard(title: "优惠", value: result.maxPotentialDiscount, color: .primary)
                             Divider().frame(height: 24)
                             ProfitCard(title: "利润", value: result.actualProfit, color: result.actualProfit >= 0 ? .green : .red)
                             Divider().frame(height: 24)
-                            ProfitPercentCard(title: "利润率", value: profitMargin, color: profitMargin >= 0 ? .blue : .red)
+                            // 显示净费率，方便查看
+                            ProfitPercentCard(title: "净费率", value: result.netRate, color: .blue)
                         }
-                        .padding(10).background(Color.white.opacity(0.4)).cornerRadius(12).padding(.bottom, 16)
+                        .padding(10)
+                        .background(Color.white.opacity(0.4))
+                        .cornerRadius(12)
+                        .padding(.bottom, 16)
                     }
+                    
                     Divider().overlay(Color.black.opacity(0.05))
+                    
                     ScrollView {
                         VStack(spacing: 16) {
                             GlassSection(title: "收入", icon: "arrow.down.forward.circle.fill", color: .green) {
@@ -119,20 +193,18 @@ struct CalculatorView: View {
             .liquidGlassStyle()
             .ignoresSafeArea()
             
-            // === 右上角工具栏 (置顶 + 设置) ===
+            // === Buttons ===
             HStack(spacing: 10) {
-                // 置顶按钮
                 Button(action: { isPinned.toggle() }) {
                     Image(systemName: isPinned ? "pin.fill" : "pin")
                         .font(.system(size: 13))
-                        .foregroundStyle(isPinned ? .red : .secondary.opacity(0.6)) // 激活时变红
+                        .foregroundStyle(isPinned ? .red : .secondary.opacity(0.6))
                         .padding(8)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .help(isPinned ? "取消置顶" : "窗口置顶")
 
-                // 设置按钮
                 Button(action: { showSettings = true }) {
                     Image(systemName: "gearshape.fill")
                         .font(.system(size: 13))
@@ -150,13 +222,142 @@ struct CalculatorView: View {
             SettingsView(settings: settings)
                 .frame(width: 400, height: 500)
         }
+        // 【核心修改】视图出现时，延迟一小段时间强制聚焦到第一个输入框
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                self.focusedField = 0
+            }
+        }
     }
 }
 
-// 组件定义 (保持不变)
-struct InputCard: View { let title: String; @Binding var value: Double?; let color: Color; var body: some View { VStack(alignment: .leading, spacing: 2) { Text(title).font(.system(size: 10, weight: .medium)).foregroundStyle(.secondary).padding(.leading, 2); TextField("0", value: $value, format: .number.grouping(.never)).font(.system(size: 28, weight: .semibold, design: .rounded)).foregroundStyle(color).textFieldStyle(.plain) }.padding(10).frame(maxWidth: .infinity, alignment: .leading).background(Color.white.opacity(0.25)).cornerRadius(12).overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.3), lineWidth: 1)) } }
-struct GlassButton: View { let title: String; let isSelected: Bool; let color: Color; let action: () -> Void; var body: some View { Button(action: action) { Text(title).font(.system(size: 11, weight: isSelected ? .bold : .medium)).foregroundStyle(isSelected ? .white : .primary.opacity(0.8)).lineLimit(1).minimumScaleFactor(0.8).frame(maxWidth: .infinity).padding(.vertical, 6).contentShape(Rectangle()) }.buttonStyle(.plain).background(RoundedRectangle(cornerRadius: 8).fill(isSelected ? color.gradient : Color.white.opacity(0.2).gradient)).overlay(RoundedRectangle(cornerRadius: 8).stroke(isSelected ? .white.opacity(0.6) : .white.opacity(0.4), lineWidth: 1)).scaleEffect(isSelected ? 1.02 : 1.0) } }
-struct ProfitCard: View { let title: String; let value: Double; let color: Color; var body: some View { VStack(spacing: 1) { Text(title).font(.system(size: 9)).foregroundStyle(.secondary); Text(value, format: .number.precision(.fractionLength(1))).font(.system(size: 12, weight: .bold)).foregroundStyle(color) }.frame(maxWidth: .infinity) } }
-struct ProfitPercentCard: View { let title: String; let value: Double; let color: Color; var body: some View { VStack(spacing: 1) { Text(title).font(.system(size: 9)).foregroundStyle(.secondary); Text(value, format: .percent.precision(.fractionLength(2))).font(.system(size: 12, weight: .bold)).foregroundStyle(color) }.frame(maxWidth: .infinity) } }
-struct GlassSection<Content: View>: View { let title: String; let icon: String; let color: Color; @ViewBuilder let content: Content; var body: some View { VStack(alignment: .leading, spacing: 8) { HStack { Image(systemName: icon).font(.system(size: 10)).foregroundStyle(color); Text(title).font(.system(size: 11, weight: .bold)).foregroundStyle(.secondary) }; VStack(spacing: 8) { content }.padding(10).background(Color.white.opacity(0.2)).cornerRadius(10) } } }
-struct DetailRow: View { let label: String; let value: Double?; let color: Color; var body: some View { HStack { Text(label).font(.system(size: 11)).foregroundStyle(.secondary); Spacer(); if let v = value { Text(v, format: .currency(code: "CNY")).font(.system(size: 11, weight: .medium, design: .monospaced)).foregroundStyle(color) } } } }
+// MARK: - Components
+
+struct InputCard: View {
+    let title: String
+    @Binding var value: Double?
+    let color: Color
+    // 新增焦点控制参数
+    var focusID: Int? = nil
+    var focusState: FocusState<Int?>.Binding? = nil
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title).font(.system(size: 10, weight: .medium)).foregroundStyle(.secondary).padding(.leading, 2)
+            
+            // 使用条件绑定焦点
+            if let id = focusID, let state = focusState {
+                TextField("0", value: $value, format: .number.grouping(.never))
+                    .font(.system(size: 28, weight: .semibold, design: .rounded))
+                    .foregroundStyle(color)
+                    .textFieldStyle(.plain)
+                    .focused(state, equals: id)
+            } else {
+                TextField("0", value: $value, format: .number.grouping(.never))
+                    .font(.system(size: 28, weight: .semibold, design: .rounded))
+                    .foregroundStyle(color)
+                    .textFieldStyle(.plain)
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.white.opacity(0.25))
+        .cornerRadius(12)
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.3), lineWidth: 1))
+    }
+}
+
+struct GlassButton: View {
+    let title: String
+    let isSelected: Bool
+    let color: Color
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 11, weight: isSelected ? .bold : .medium))
+                .foregroundStyle(isSelected ? .white : .primary.opacity(0.8))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 6)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(isSelected ? color.gradient : Color.white.opacity(0.2).gradient)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(isSelected ? .white.opacity(0.6) : .white.opacity(0.4), lineWidth: 1)
+        )
+        .scaleEffect(isSelected ? 1.02 : 1.0)
+    }
+}
+
+struct ProfitCard: View {
+    let title: String
+    let value: Double
+    let color: Color
+    var body: some View {
+        VStack(spacing: 1) {
+            Text(title).font(.system(size: 9)).foregroundStyle(.secondary)
+            Text(value, format: .number.precision(.fractionLength(1)))
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(color)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+struct ProfitPercentCard: View {
+    let title: String
+    let value: Double
+    let color: Color
+    var body: some View {
+        VStack(spacing: 1) {
+            Text(title).font(.system(size: 9)).foregroundStyle(.secondary)
+            Text(value, format: .percent.precision(.fractionLength(2)))
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(color)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+struct GlassSection<Content: View>: View {
+    let title: String
+    let icon: String
+    let color: Color
+    @ViewBuilder let content: Content
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: icon).font(.system(size: 10)).foregroundStyle(color)
+                Text(title).font(.system(size: 11, weight: .bold)).foregroundStyle(.secondary)
+            }
+            VStack(spacing: 8) { content }
+            .padding(10)
+            .background(Color.white.opacity(0.2))
+            .cornerRadius(10)
+        }
+    }
+}
+
+struct DetailRow: View {
+    let label: String
+    let value: Double?
+    let color: Color
+    var body: some View {
+        HStack {
+            Text(label).font(.system(size: 11)).foregroundStyle(.secondary)
+            Spacer()
+            if let v = value {
+                Text(v, format: .currency(code: "CNY"))
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundStyle(color)
+            }
+        }
+    }
+}
