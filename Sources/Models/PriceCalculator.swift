@@ -34,9 +34,9 @@ class PriceCalculator {
     
     // 计算国补到手价
     static func calculateSubsidyPrice(originalPrice: Double) -> Double {
-        // 规则：优惠 15%，最高 2000
+        // 规则：优惠 15%，最高 1500
         let discount = originalPrice * 0.15
-        let actualDiscount = min(discount, 2000)
+        let actualDiscount = min(discount, 1500)
         return originalPrice - actualDiscount
     }
 
