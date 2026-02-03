@@ -38,7 +38,7 @@ struct CalculatorView: View {
     @State private var selectedChannel: ChannelType = .normal
     @State private var showSettings = false
     
-    // 【核心修改】定义焦点状态：0代表价格，1代表优惠
+    // 定义焦点状态
     @FocusState private var focusedField: Int?
     
     let gridColumns = [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)]
@@ -55,7 +55,6 @@ struct CalculatorView: View {
                     Spacer().frame(height: 32)
                     
                     VStack(spacing: 10) {
-                        // 【核心修改】传入焦点ID和绑定
                         InputCard(
                             title: "官方指导价",
                             value: $priceInput,
@@ -159,8 +158,8 @@ struct CalculatorView: View {
                             Divider().frame(height: 24)
                             ProfitCard(title: "利润", value: result.actualProfit, color: result.actualProfit >= 0 ? .green : .red)
                             Divider().frame(height: 24)
-                            // 显示净费率，方便查看
-                            ProfitPercentCard(title: "净费率", value: result.netRate, color: .blue)
+                            // 【核心修改】将标题从“净费率”改为“利润率”
+                            ProfitPercentCard(title: "利润率", value: result.netRate, color: .blue)
                         }
                         .padding(10)
                         .background(Color.white.opacity(0.4))
@@ -222,9 +221,9 @@ struct CalculatorView: View {
             SettingsView(settings: settings)
                 .frame(width: 400, height: 500)
         }
-        // 【核心修改】视图出现时，延迟一小段时间强制聚焦到第一个输入框
+        .defaultFocus($focusedField, 0)
         .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 self.focusedField = 0
             }
         }
@@ -237,7 +236,6 @@ struct InputCard: View {
     let title: String
     @Binding var value: Double?
     let color: Color
-    // 新增焦点控制参数
     var focusID: Int? = nil
     var focusState: FocusState<Int?>.Binding? = nil
     
@@ -245,7 +243,6 @@ struct InputCard: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title).font(.system(size: 10, weight: .medium)).foregroundStyle(.secondary).padding(.leading, 2)
             
-            // 使用条件绑定焦点
             if let id = focusID, let state = focusState {
                 TextField("0", value: $value, format: .number.grouping(.never))
                     .font(.system(size: 28, weight: .semibold, design: .rounded))
