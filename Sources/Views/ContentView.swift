@@ -1,8 +1,7 @@
-# 重写 ContentView.swift，加入置顶功能
 import SwiftUI
 import AppKit
 
-// 1. 定义一个辅助视图，用于访问底层 NSWindow
+// 1. 定义一个辅助视图，用于访问底层 NSWindow (实现置顶的核心)
 struct WindowAccessor: NSViewRepresentable {
     @Binding var isAlwaysOnTop: Bool
 
@@ -39,7 +38,7 @@ struct WindowAccessor: NSViewRepresentable {
     }
 }
 
-// 2. 更新主视图
+// 2. 主视图结构
 struct ContentView: View {
     @StateObject var settings = AppSettings()
     @State private var selection: Panel? = .calculator
@@ -53,7 +52,7 @@ struct ContentView: View {
     
     var body: some View {
         NavigationSplitView {
-            List(selection: \$selection) {
+            List(selection: $selection) {
                 Label("智能报价计算", systemImage: "function")
                     .tag(Panel.calculator)
                 
@@ -84,7 +83,7 @@ struct ContentView: View {
                 Button(action: {
                     isPinned.toggle()
                 }) {
-                    // 根据状态改变图标颜色或样式
+                    // 根据状态改变图标样式
                     Image(systemName: isPinned ? "pin.fill" : "pin")
                         .foregroundColor(isPinned ? .red : .primary)
                 }
@@ -92,6 +91,6 @@ struct ContentView: View {
             }
         }
         // 4. 注入窗口控制逻辑
-        .background(WindowAccessor(isAlwaysOnTop: \$isPinned))
+        .background(WindowAccessor(isAlwaysOnTop: $isPinned))
     }
 }
