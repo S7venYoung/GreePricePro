@@ -20,16 +20,14 @@ struct CalculatorView: View {
     @State private var groupDiscountInput: Double? = nil
     @State private var selectedTier: ProductTier = .midRange
     @State private var selectedChannel: ChannelType = .normal
-    
-    // 控制设置弹窗
     @State private var showSettings = false
     
     let gridColumns = [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)]
     
     var body: some View {
-        ZStack(alignment: .topTrailing) { // 使用 ZStack 放置悬浮按钮
+        ZStack(alignment: .topTrailing) {
             
-            // === 主内容 (保持不变) ===
+            // === 主内容 ===
             HStack(spacing: 0) {
                 // 左侧
                 VStack(alignment: .leading, spacing: 16) {
@@ -114,9 +112,13 @@ struct CalculatorView: View {
             }
             .frame(width: 480)
             .liquidGlassStyle()
+            // 【重要】给顶部留一点点空间，防止红绿灯遮挡左上角内容 (虽然现在左上角是文字，稍微低一点好看)
+            .padding(.top, 10) 
             .padding(20)
+            // 确保背景可点击，以便窗口拖拽生效
+            .contentShape(Rectangle()) 
             
-            // === 设置按钮 (悬浮在右上角) ===
+            // === 设置按钮 (悬浮) ===
             Button(action: { showSettings = true }) {
                 Image(systemName: "gearshape.fill")
                     .font(.system(size: 14))
@@ -127,13 +129,11 @@ struct CalculatorView: View {
                     .overlay(Circle().stroke(Color.white.opacity(0.3), lineWidth: 1))
             }
             .buttonStyle(.plain)
-            .padding(28) // 调整位置
-            .help("配置费率参数")
+            .padding(28)
         }
-        // 弹窗显示设置页
         .sheet(isPresented: $showSettings) {
             SettingsView(settings: settings)
-                .frame(width: 400, height: 500) // 限制弹窗大小
+                .frame(width: 400, height: 500)
         }
     }
 }
