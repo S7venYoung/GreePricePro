@@ -1,45 +1,78 @@
+cat <<EOF > GreePricePro/.github/workflows/build.yml
 name: Build macOS App
 
 on:
   push:
     branches: [ "main" ]
-  workflow_dispatch: # 允许你在网页上手动点击按钮触发编译
+  workflow_dispatch:
 
 jobs:
   build:
     name: Build and Package
-    runs-on: macos-latest # 使用最新的 macOS 环境
+    runs-on: macos-latest
 
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    - name: Setup Xcode
-      uses: maxim-lobanov/setup-xcode@v1
-      with:
-        xcode-version: 'latest-stable'
+    - name: Build with Swift
+      # 编译通用架构 (Intel + Apple Silicon)
+      run: swift build -c release --arch arm64 --arch x86_64
 
-    - name: Build App (Unsigned)
-      # 核心命令：禁用代码签名要求，进行 Release 编译
+    - name: Create App Bundle
       run: |
-        xcodebuild build \
-          -scheme "GreePricePro" \
-          -destination "platform=macOS" \
-          -configuration Release \
-          -derivedDataPath build \
-          CODE_SIGN_IDENTITY="" \
-          CODE_SIGNING_REQUIRED=NO \
-          CODE_SIGNING_ALLOWED=NO
+        APP_NAME="GreePricePro"
+        # 1. 手动创建 .app 文件夹结构
+        mkdir -p build/\$APP_NAME.app/Contents/MacOS
+        mkdir -p build/\$APP_NAME.app/Contents/Resources
+        
+        # 2. 查找编译好的二进制文件 (路径可能因环境而异，所以用 find 命令查找)
+        # 查找 .build 目录下，名字叫 GreePricePro，且在 release 文件夹中的文件
+        BINARY_PATH=\$(find .build -name "\$APP_NAME" -type f | grep -v "\.o$" | grep "release" | head -n 1)
+        
+        if [ -z "\$BINARY_PATH" ]; then
+          echo "错误: 找不到编译好的二进制文件！"
+          exit 1
+        else
+          echo "找到二进制文件: \$BINARY_PATH"
+          cp "\$BINARY_PATH" "build/\$APP_NAME.app/Contents/MacOS/"
+        fi
 
-    - name: Package App
-      # 找到生成的 .app 并压缩，避免上传过程丢失文件权限
+        # 3. 创建 Info.plist (这是 App 能被 macOS 识别的关键)
+        cat <<PLIST > build/\$APP_NAME.app/Contents/Info.plist
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>CFBundleExecutable</key>
+            <string>\$APP_NAME</string>
+            <key>CFBundleIconFile</key>
+            <string>AppIcon</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.greehelper.\$APP_NAME</string>
+            <key>CFBundleName</key>
+            <string>\$APP_NAME</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>CFBundleShortVersionString</key>
+            <string>1.0</string>
+            <key>LSMinimumSystemVersion</key>
+            <string>13.0</string>
+            <key>NSHighResolutionCapable</key>
+            <true/>
+        </dict>
+        </plist>
+        PLIST
+
+    - name: Zip App
       run: |
-        cd build/Build/Products/Release
+        cd build
+        # 这里的路径现在是对的了
         zip -r GreePricePro.zip GreePricePro.app
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: GreePricePro-App
-        path: build/Build/Products/Release/GreePricePro.zip
-        retention-days: 5
+        path: build/GreePricePro.zip
+EOF
