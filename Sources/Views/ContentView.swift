@@ -1,6 +1,6 @@
 import SwiftUI
 
-// 辅助视图：WindowAccessor (保持不变)
+// WindowAccessor 用于置顶功能 (保持不变)
 struct WindowAccessor: NSViewRepresentable {
     @Binding var isAlwaysOnTop: Bool
     func makeNSView(context: Context) -> NSView { let view = NSView(); DispatchQueue.main.async { if let window = view.window { context.coordinator.window = window; updateLevel(window: window, isTop: isAlwaysOnTop) } }; return view }
@@ -12,34 +12,21 @@ struct WindowAccessor: NSViewRepresentable {
 
 struct ContentView: View {
     @StateObject var settings = AppSettings()
-    @State private var selection: Panel? = .calculator
     @State private var isPinned: Bool = false
     
-    enum Panel: Hashable { case calculator, productList, settings }
-    
     var body: some View {
-        NavigationSplitView {
-            List(selection: $selection) {
-                Label("智能报价", systemImage: "function").tag(Panel.calculator)
-                Label("产品清单", systemImage: "list.bullet.rectangle").tag(Panel.productList)
-                Divider()
-                Label("参数配置", systemImage: "gearshape").tag(Panel.settings)
+        // 【核心修改】只放 CalculatorView，不放 SplitView
+        CalculatorView(settings: settings)
+            .background(WindowAccessor(isAlwaysOnTop: $isPinned))
+            .toolbar {
+                ToolbarItem(placement: .automatic) {
+                    Button(action: { isPinned.toggle() }) {
+                        Image(systemName: isPinned ? "pin.fill" : "pin")
+                            .foregroundColor(isPinned ? .red : .primary)
+                    }
+                    .help(isPinned ? "取消置顶" : "窗口置顶")
+                }
             }
-            .navigationSplitViewColumnWidth(min: 200, ideal: 220)
-        } detail: {
-            switch selection {
-            case .calculator: CalculatorView(settings: settings)
-            case .productList: ProductListView()
-            case .settings: SettingsView(settings: settings)
-            case .none: Text("请选择功能")
-            }
-        }
-        .toolbar {
-            ToolbarItem(placement: .automatic) {
-                Button(action: { isPinned.toggle() }) { Image(systemName: isPinned ? "pin.fill" : "pin").foregroundColor(isPinned ? .red : .primary) }
-                .help(isPinned ? "取消置顶" : "窗口置顶")
-            }
-        }
-        .background(WindowAccessor(isAlwaysOnTop: $isPinned))
+            // 这里不加 frame，尺寸完全由 CalculatorView 撑开
     }
 }
