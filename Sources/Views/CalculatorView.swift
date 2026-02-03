@@ -1,5 +1,35 @@
 import SwiftUI
 
+// MARK: - Liquid Glass 风格修饰符
+struct LiquidGlassCard: ViewModifier {
+    var cornerRadius: CGFloat = 20
+    
+    func body(content: Content) -> some View {
+        content
+            .background(.ultraThinMaterial)
+            .background(Color.white.opacity(0.1))
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(
+                        LinearGradient(
+                            colors: [.white.opacity(0.5), .white.opacity(0.1)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+            )
+    }
+}
+
+extension View {
+    func liquidGlassStyle(cornerRadius: CGFloat = 20) -> some View {
+        modifier(LiquidGlassCard(cornerRadius: cornerRadius))
+    }
+}
+
 struct CalculatorView: View {
     @ObservedObject var settings: AppSettings
     
@@ -8,200 +38,250 @@ struct CalculatorView: View {
     @State private var selectedTier: ProductTier = .midRange
     @State private var selectedChannel: ChannelType = .normal
     
-    // 双列网格 (自适应)
-    let gridColumns = [
-        GridItem(.flexible(), spacing: 10),
-        GridItem(.flexible(), spacing: 10)
-    ]
+    // 双列网格
+    let gridColumns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
     
     var body: some View {
-        // 使用 spacing: 0 紧凑排列，中间用 Divider 分隔
-        HStack(spacing: 0) {
+        ZStack {
+            // 1. 底层流体背景
+            FluidBackground()
             
-            // MARK: - 左侧控制台 (弹性)
-            VStack(alignment: .leading, spacing: 20) {
-                // 1. 价格输入
-                VStack(alignment: .leading, spacing: 12) {
-                    InputGroup(title: "官方指导价", value: $priceInput, color: .primary)
-                    InputGroup(title: "团购优惠", value: $groupDiscountInput, color: .blue)
-                }
-                .padding(16)
-                .background(RoundedRectangle(cornerRadius: 12).fill(Color(nsColor: .controlBackgroundColor)))
+            // 2. 主体内容
+            HStack(spacing: 0) {
                 
-                // 2. 机型档次
-                VStack(alignment: .leading, spacing: 10) {
-                    Label("机型档次", systemImage: "air.conditioner.horizontal")
-                        .font(.headline)
+                // MARK: - 左侧控制台 (Glass Panel)
+                VStack(alignment: .leading, spacing: 20) {
                     
-                    LazyVGrid(columns: gridColumns, spacing: 10) {
-                        ForEach(ProductTier.allCases) { tier in
-                            SelectableButton(title: tier.rawValue, isSelected: selectedTier == tier, color: .gray) {
-                                withAnimation(.snappy) { selectedTier = tier }
-                            }
-                        }
+                    // 1. 价格输入区 (拆分为两个独立卡片)
+                    VStack(spacing: 16) {
+                        InputCard(title: "官方指导价", value: $priceInput, color: .primary)
+                        InputCard(title: "团购优惠", value: $groupDiscountInput, color: .indigo)
                     }
-                }
-                
-                // 3. 销售渠道
-                VStack(alignment: .leading, spacing: 10) {
-                    Label("销售渠道", systemImage: "network")
-                        .font(.headline)
                     
-                    LazyVGrid(columns: gridColumns, spacing: 10) {
-                        ForEach(ChannelType.allCases) { channel in
-                            SelectableButton(title: channel.rawValue, isSelected: selectedChannel == channel, color: .orange) {
-                                withAnimation(.snappy) { selectedChannel = channel }
-                            }
-                        }
-                    }
-                }
-                
-                Spacer()
-            }
-            .padding(20)
-            .frame(minWidth: 280, maxWidth: .infinity) // 【修改】允许拉伸
-            
-            // 中间分割线
-            Divider()
-            
-            // MARK: - 右侧结果 (弹性)
-            VStack(spacing: 0) {
-                let result = PriceCalculator.calculate(
-                    originalPrice: priceInput,
-                    groupDiscountInput: groupDiscountInput,
-                    tier: selectedTier,
-                    channel: selectedChannel,
-                    settings: settings
-                )
-                
-                // 顶部结果区域
-                VStack(spacing: 6) {
-                    HStack {
-                        Text("国补后基准: \(result.subsidyPrice, format: .currency(code: "CNY"))")
-                            .font(.system(size: 13, weight: .medium))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Capsule().fill(Color.secondary.opacity(0.1)))
-                    }
-                    .padding(.top, 10)
-                    
-                    Text("跟团到手价")
-                        .font(.headline)
-                        .foregroundColor(.secondary)
-                        .padding(.top, 4)
-                    
-                    // 大数字，允许缩放
-                    Text(result.groupPrice, format: .number.precision(.fractionLength(2)))
-                        .font(.system(size: 72, weight: .heavy, design: .rounded))
-                        .contentTransition(.numericText())
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.5)
-                        .padding(.vertical, 4)
-                    
-                    // 利润指示器
-                    HStack(spacing: 20) {
-                        VStack(spacing: 4) {
-                            Text("最大优惠").font(.caption).opacity(0.6)
-                            Text(result.maxPotentialDiscount, format: .number.precision(.fractionLength(1)))
+                    // 2. 选项区
+                    VStack(alignment: .leading, spacing: 20) {
+                        // 机型档次
+                        VStack(alignment: .leading, spacing: 10) {
+                            Label("机型档次", systemImage: "air.conditioner.horizontal")
                                 .font(.headline)
-                        }
-                        Divider().frame(height: 24)
-                        VStack(spacing: 4) {
-                            Text("实际利润").font(.caption).opacity(0.6)
-                            Text(result.actualProfit, format: .number.precision(.fractionLength(1)))
-                                .font(.title3).bold()
-                                .foregroundColor(result.actualProfit >= 0 ? .green : .red)
-                        }
-                    }
-                    .padding(16)
-                    .background(RoundedRectangle(cornerRadius: 12).fill(Color(nsColor: .windowBackgroundColor)).shadow(radius: 1))
-                    .padding(.bottom, 20)
-                }
-                .frame(maxWidth: .infinity) // 填满宽度
-                .background(Color(nsColor: .controlBackgroundColor))
-                
-                Divider()
-                
-                // 详情列表
-                ScrollView {
-                    VStack(spacing: 24) {
-                        VStack(alignment: .leading, spacing: 12) {
-                            SectionHeader(title: "各项收入", icon: "arrow.down.circle.fill", color: .green)
-                            DetailRow(label: "机型佣金", value: result.profitDetails["机型佣金"], color: .green)
-                            DetailRow(label: "补贴平台费", value: result.profitDetails["补贴平台费"], color: .green)
+                                .foregroundStyle(.secondary)
+                            
+                            LazyVGrid(columns: gridColumns, spacing: 12) {
+                                ForEach(ProductTier.allCases) { tier in
+                                    GlassButton(title: tier.rawValue, isSelected: selectedTier == tier, color: .blue) {
+                                        withAnimation(.snappy) { selectedTier = tier }
+                                    }
+                                }
+                            }
                         }
                         
-                        Divider().opacity(0.3)
-                        
-                        VStack(alignment: .leading, spacing: 12) {
-                            SectionHeader(title: "成本扣除", icon: "arrow.up.circle.fill", color: .red)
-                            if let v = result.profitDetails["平台交易服务费"] { DetailRow(label: "交易费", value: -v, color: .red) }
-                            if let v = result.profitDetails["平台基础扣点"] { DetailRow(label: "基础扣点", value: -v, color: .red) }
-                            if let v = result.profitDetails["返利框架费"] { DetailRow(label: "返利费", value: -v, color: .red) }
-                            if let v = result.profitDetails["降扣后平台扣点"] { DetailRow(label: "降扣扣点", value: -v, color: .red) }
-                            if let v = result.profitDetails["CPS佣金支出"] { DetailRow(label: "CPS佣金", value: -v, color: .red) }
+                        // 销售渠道
+                        VStack(alignment: .leading, spacing: 10) {
+                            Label("销售渠道", systemImage: "network")
+                                .font(.headline)
+                                .foregroundStyle(.secondary)
+                            
+                            LazyVGrid(columns: gridColumns, spacing: 12) {
+                                ForEach(ChannelType.allCases) { channel in
+                                    GlassButton(title: channel.rawValue, isSelected: selectedChannel == channel, color: .orange) {
+                                        withAnimation(.snappy) { selectedChannel = channel }
+                                    }
+                                }
+                            }
                         }
                     }
-                    .padding(30)
+                    
+                    Spacer()
                 }
-                .background(Color(nsColor: .windowBackgroundColor))
+                .padding(24)
+                .frame(minWidth: 300, maxWidth: .infinity) // 左侧稍微给宽一点，适应大字体
+                
+                // 中间分割线 (微弱)
+                Divider().overlay(Color.white.opacity(0.2))
+                
+                // MARK: - 右侧结果 (Glass Panel)
+                VStack(spacing: 0) {
+                    let result = PriceCalculator.calculate(
+                        originalPrice: priceInput,
+                        groupDiscountInput: groupDiscountInput,
+                        tier: selectedTier,
+                        channel: selectedChannel,
+                        settings: settings
+                    )
+                    
+                    // 顶部结果展示
+                    VStack(spacing: 8) {
+                        // 国补胶囊
+                        HStack {
+                            Text("国补后基准")
+                                .font(.caption).foregroundStyle(.secondary)
+                            Text(result.subsidyPrice, format: .currency(code: "CNY"))
+                                .font(.caption).bold().monospacedDigit()
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(.ultraThinMaterial)
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(.white.opacity(0.3), lineWidth: 0.5))
+                        .padding(.top, 24)
+                        
+                        Text("跟团到手价")
+                            .font(.title3.weight(.medium))
+                            .foregroundStyle(.secondary)
+                            .padding(.top, 8)
+                        
+                        // 超大数字
+                        Text(result.groupPrice, format: .number.precision(.fractionLength(2)))
+                            .font(.system(size: 80, weight: .thin, design: .rounded))
+                            .contentTransition(.numericText())
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [.primary, .primary.opacity(0.8)],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                            .shadow(color: .white.opacity(0.5), radius: 1, x: 0, y: 1)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.5)
+                        
+                        // 利润仪表盘
+                        HStack(spacing: 0) {
+                            ProfitCard(title: "最大优惠", value: result.maxPotentialDiscount, color: .primary)
+                            Divider().frame(height: 30)
+                            ProfitCard(title: "实际利润", value: result.actualProfit, color: result.actualProfit >= 0 ? .green : .red)
+                        }
+                        .padding(12)
+                        .background(.white.opacity(0.4))
+                        .cornerRadius(16)
+                        .padding(.bottom, 24)
+                    }
+                    .frame(maxWidth: .infinity)
+                    
+                    Divider().overlay(Color.black.opacity(0.05))
+                    
+                    // 详情列表
+                    ScrollView {
+                        VStack(spacing: 24) {
+                            GlassSection(title: "收入构成", icon: "arrow.down.forward.circle.fill", color: .green) {
+                                DetailRow(label: "机型佣金", value: result.profitDetails["机型佣金"], color: .green)
+                                DetailRow(label: "补贴平台费", value: result.profitDetails["补贴平台费"], color: .green)
+                            }
+                            
+                            GlassSection(title: "成本扣除", icon: "arrow.up.forward.circle.fill", color: .red) {
+                                if let v = result.profitDetails["平台交易服务费"] { DetailRow(label: "交易费", value: -v, color: .red) }
+                                if let v = result.profitDetails["平台基础扣点"] { DetailRow(label: "基础扣点", value: -v, color: .red) }
+                                if let v = result.profitDetails["返利框架费"] { DetailRow(label: "返利费", value: -v, color: .red) }
+                                if let v = result.profitDetails["降扣后平台扣点"] { DetailRow(label: "降扣扣点", value: -v, color: .red) }
+                                if let v = result.profitDetails["CPS佣金支出"] { DetailRow(label: "CPS佣金", value: -v, color: .red) }
+                            }
+                        }
+                        .padding(24)
+                    }
+                }
+                .frame(minWidth: 320, maxWidth: .infinity)
+                .background(.ultraThinMaterial.opacity(0.5)) // 右侧背景微调
             }
-            .frame(minWidth: 320, maxWidth: .infinity) // 【修改】允许拉伸
         }
     }
 }
 
-// MARK: - 组件
+// MARK: - 组件升级
 
-struct DetailRow: View {
-    let label: String
-    let value: Double?
+// 独立的输入卡片 (大字体版)
+struct InputCard: View {
+    let title: String
+    @Binding var value: Double
     let color: Color
+    
     var body: some View {
-        HStack {
-            Text(label).font(.system(size: 14)).foregroundColor(.secondary)
-            Spacer()
-            if let v = value {
-                Text(v, format: .currency(code: "CNY"))
-                    .font(.system(size: 15, weight: .medium, design: .monospaced))
-                    .foregroundColor(color)
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.subheadline) // 标题也稍微加大
+                .foregroundStyle(.secondary)
+                .padding(.leading, 2)
+            
+            TextField("0", value: $value, format: .number.grouping(.never))
+                .font(.system(size: 36, weight: .regular, design: .rounded)) // 字体加大到 36
+                .foregroundStyle(color)
+                .textFieldStyle(.plain)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        // 独立的玻璃卡片样式
+        .background(Color.white.opacity(0.3))
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.white.opacity(0.4), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.05), radius: 5, y: 2)
+    }
+}
+
+// 流体背景 (保持不变)
+struct FluidBackground: View {
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack {
+                Color(nsColor: .windowBackgroundColor).opacity(0.5)
+                Circle().fill(Color.blue.opacity(0.15)).frame(width: 400, height: 400).offset(x: -100, y: -100).blur(radius: 80)
+                Circle().fill(Color.purple.opacity(0.15)).frame(width: 300, height: 300).offset(x: proxy.size.width - 100, y: proxy.size.height - 100).blur(radius: 60)
+                Circle().fill(Color.orange.opacity(0.1)).frame(width: 200, height: 200).offset(x: 100, y: proxy.size.height / 2).blur(radius: 50)
             }
         }
+        .ignoresSafeArea()
     }
 }
 
-struct SectionHeader: View {
-    let title: String; let icon: String; let color: Color
-    var body: some View {
-        HStack {
-            Image(systemName: icon).foregroundColor(color).font(.system(size: 16))
-            Text(title).font(.system(size: 15, weight: .semibold)).foregroundColor(.secondary)
-        }
-    }
-}
-
-struct InputGroup: View {
-    let title: String; @Binding var value: Double; let color: Color
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.caption).foregroundColor(.secondary)
-            TextField("0", value: $value, format: .number.grouping(.never))
-                .font(.system(size: 26, weight: .bold, design: .rounded))
-                .foregroundColor(color).textFieldStyle(.plain)
-        }
-    }
-}
-
-struct SelectableButton: View {
+// 玻璃按钮 (保持不变)
+struct GlassButton: View {
     let title: String; let isSelected: Bool; let color: Color; let action: () -> Void
     var body: some View {
         Button(action: action) {
-            Text(title).font(.system(size: 13)).lineLimit(1).minimumScaleFactor(0.8)
-                .frame(maxWidth: .infinity).padding(.vertical, 8).contentShape(Rectangle())
+            Text(title).font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+                .foregroundStyle(isSelected ? .white : .primary).lineLimit(1).minimumScaleFactor(0.8)
+                .frame(maxWidth: .infinity).padding(.vertical, 10).contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .background(RoundedRectangle(cornerRadius: 8).fill(isSelected ? color.opacity(0.15) : Color(nsColor: .controlBackgroundColor))
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(isSelected ? color : Color.gray.opacity(0.2), lineWidth: 1)))
-        .foregroundColor(isSelected ? color : .primary)
+        .background(RoundedRectangle(cornerRadius: 12).fill(isSelected ? color.gradient : Color.white.opacity(0.2).gradient).shadow(color: isSelected ? color.opacity(0.3) : .clear, radius: 5, y: 2))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(isSelected ? .white.opacity(0.5) : .white.opacity(0.2), lineWidth: 1))
+        .scaleEffect(isSelected ? 1.02 : 1.0)
+    }
+}
+
+// 利润卡片 (保持不变)
+struct ProfitCard: View {
+    let title: String; let value: Double; let color: Color
+    var body: some View {
+        VStack(spacing: 2) {
+            Text(title).font(.caption2).foregroundStyle(.secondary)
+            Text(value, format: .number.precision(.fractionLength(1))).font(.headline).foregroundStyle(color)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+// 玻璃分区 (保持不变)
+struct GlassSection<Content: View>: View {
+    let title: String; let icon: String; let color: Color; @ViewBuilder let content: Content
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack { Image(systemName: icon).foregroundStyle(color); Text(title).font(.subheadline).bold().foregroundStyle(.secondary) }
+            VStack(spacing: 12) { content }
+            .padding(16).background(Color.white.opacity(0.2)).cornerRadius(12)
+        }
+    }
+}
+
+// 详情行 (保持不变)
+struct DetailRow: View {
+    let label: String; let value: Double?; let color: Color
+    var body: some View {
+        HStack {
+            Text(label).font(.subheadline).foregroundStyle(.secondary)
+            Spacer()
+            if let v = value { Text(v, format: .currency(code: "CNY")).font(.callout.monospacedDigit()).fontWeight(.medium).foregroundStyle(color) }
+        }
     }
 }
