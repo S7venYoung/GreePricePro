@@ -1,5 +1,4 @@
 # 重写 ContentView.swift，加入置顶功能
-cat <<EOF > GreePricePro/Sources/Views/ContentView.swift
 import SwiftUI
 import AppKit
 
@@ -96,4 +95,3 @@ struct ContentView: View {
         .background(WindowAccessor(isAlwaysOnTop: \$isPinned))
     }
 }
-EOF
