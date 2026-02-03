@@ -22,7 +22,7 @@ struct SettingsView: View {
         }
     }
     
-    // MARK: - Subviews (拆分视图以通过编译)
+    // MARK: - Subviews
     
     private var platformRatesSection: some View {
         Section("平台费率配置") {
@@ -72,7 +72,7 @@ struct SettingsView: View {
     }
 }
 
-// 提取单独的行视图，进一步降低复杂度
+// 独立的行视图 (Fixed Binding Logic)
 struct TierRateRow: View {
     @ObservedObject var settings: AppSettings
     let tier: ProductTier
@@ -81,17 +81,17 @@ struct TierRateRow: View {
         HStack {
             Text(tier.rawValue)
             Spacer()
-            // 使用计算属性构造 Binding
-            TextField("0.0", value: binding, format: .percent)
+            TextField("0.0", value: rateBinding, format: .percent)
                 .frame(width: 80)
                 .multilineTextAlignment(.trailing)
         }
     }
     
-    private var binding: Binding<Double> {
+    // 使用直接的字典访问，避免方法调用导致的编译器混淆
+    private var rateBinding: Binding<Double> {
         Binding(
-            get: { settings.getTierRate(tier) },
-            set: { settings.setTierRate(tier, rate: $0) }
+            get: { settings.tierRates[tier] ?? 0.0 },
+            set: { settings.tierRates[tier] = $0 }
         )
     }
 }
