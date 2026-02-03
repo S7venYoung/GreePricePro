@@ -38,8 +38,8 @@ struct CalculatorView: View {
     @State private var selectedTier: ProductTier = .midRange
     @State private var selectedChannel: ChannelType = .normal
     
-    // 双列网格
-    let gridColumns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
+    // 双列网格 (间距微调)
+    let gridColumns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
     
     var body: some View {
         ZStack {
@@ -49,24 +49,24 @@ struct CalculatorView: View {
             // 2. 主体内容
             HStack(spacing: 0) {
                 
-                // MARK: - 左侧控制台 (Glass Panel)
-                VStack(alignment: .leading, spacing: 20) {
+                // MARK: - 左侧控制台 (更窄)
+                VStack(alignment: .leading, spacing: 18) {
                     
-                    // 1. 价格输入区 (拆分为两个独立卡片)
-                    VStack(spacing: 16) {
+                    // 1. 价格输入区
+                    VStack(spacing: 12) {
                         InputCard(title: "官方指导价", value: $priceInput, color: .primary)
                         InputCard(title: "团购优惠", value: $groupDiscountInput, color: .indigo)
                     }
                     
                     // 2. 选项区
-                    VStack(alignment: .leading, spacing: 20) {
+                    VStack(alignment: .leading, spacing: 18) {
                         // 机型档次
-                        VStack(alignment: .leading, spacing: 10) {
+                        VStack(alignment: .leading, spacing: 8) {
                             Label("机型档次", systemImage: "air.conditioner.horizontal")
                                 .font(.headline)
                                 .foregroundStyle(.secondary)
                             
-                            LazyVGrid(columns: gridColumns, spacing: 12) {
+                            LazyVGrid(columns: gridColumns, spacing: 10) {
                                 ForEach(ProductTier.allCases) { tier in
                                     GlassButton(title: tier.rawValue, isSelected: selectedTier == tier, color: .blue) {
                                         withAnimation(.snappy) { selectedTier = tier }
@@ -76,12 +76,12 @@ struct CalculatorView: View {
                         }
                         
                         // 销售渠道
-                        VStack(alignment: .leading, spacing: 10) {
+                        VStack(alignment: .leading, spacing: 8) {
                             Label("销售渠道", systemImage: "network")
                                 .font(.headline)
                                 .foregroundStyle(.secondary)
                             
-                            LazyVGrid(columns: gridColumns, spacing: 12) {
+                            LazyVGrid(columns: gridColumns, spacing: 10) {
                                 ForEach(ChannelType.allCases) { channel in
                                     GlassButton(title: channel.rawValue, isSelected: selectedChannel == channel, color: .orange) {
                                         withAnimation(.snappy) { selectedChannel = channel }
@@ -93,13 +93,13 @@ struct CalculatorView: View {
                     
                     Spacer()
                 }
-                .padding(24)
-                .frame(minWidth: 300, maxWidth: .infinity) // 左侧稍微给宽一点，适应大字体
+                .padding(20)
+                .frame(width: 240) // 【修改】强制固定宽度为 240，非常紧凑
                 
-                // 中间分割线 (微弱)
-                Divider().overlay(Color.white.opacity(0.2))
+                // 中间分割线
+                Divider().overlay(Color.white.opacity(0.3))
                 
-                // MARK: - 右侧结果 (Glass Panel)
+                // MARK: - 右侧结果 (自适应拉伸)
                 VStack(spacing: 0) {
                     let result = PriceCalculator.calculate(
                         originalPrice: priceInput,
@@ -130,9 +130,9 @@ struct CalculatorView: View {
                             .foregroundStyle(.secondary)
                             .padding(.top, 8)
                         
-                        // 超大数字
+                        // 【修改】超大数字 + 超粗体 (Heavy)
                         Text(result.groupPrice, format: .number.precision(.fractionLength(2)))
-                            .font(.system(size: 80, weight: .thin, design: .rounded))
+                            .font(.system(size: 84, weight: .heavy, design: .rounded)) // 字体加大且加粗
                             .contentTransition(.numericText())
                             .foregroundStyle(
                                 LinearGradient(
@@ -141,9 +141,10 @@ struct CalculatorView: View {
                                     endPoint: .bottom
                                 )
                             )
-                            .shadow(color: .white.opacity(0.5), radius: 1, x: 0, y: 1)
+                            .shadow(color: .white.opacity(0.8), radius: 2, x: 0, y: 1) // 增强高光
                             .lineLimit(1)
-                            .minimumScaleFactor(0.5)
+                            .minimumScaleFactor(0.4)
+                            .padding(.horizontal)
                         
                         // 利润仪表盘
                         HStack(spacing: 0) {
@@ -180,7 +181,7 @@ struct CalculatorView: View {
                     }
                 }
                 .frame(minWidth: 320, maxWidth: .infinity)
-                .background(.ultraThinMaterial.opacity(0.5)) // 右侧背景微调
+                .background(.ultraThinMaterial.opacity(0.5))
             }
         }
     }
@@ -188,34 +189,41 @@ struct CalculatorView: View {
 
 // MARK: - 组件升级
 
-// 独立的输入卡片 (大字体版)
+// 独立的输入卡片
 struct InputCard: View {
-    let title: String
-    @Binding var value: Double
-    let color: Color
-    
+    let title: String; @Binding var value: Double; let color: Color
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.subheadline) // 标题也稍微加大
-                .foregroundStyle(.secondary)
-                .padding(.leading, 2)
-            
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title).font(.caption).foregroundStyle(.secondary).padding(.leading, 2)
+            // 稍微缩小字体以适应更窄的卡片
             TextField("0", value: $value, format: .number.grouping(.never))
-                .font(.system(size: 36, weight: .regular, design: .rounded)) // 字体加大到 36
-                .foregroundStyle(color)
-                .textFieldStyle(.plain)
+                .font(.system(size: 32, weight: .semibold, design: .rounded))
+                .foregroundStyle(color).textFieldStyle(.plain)
         }
-        .padding(16)
+        .padding(12) // 减少内边距
         .frame(maxWidth: .infinity, alignment: .leading)
-        // 独立的玻璃卡片样式
         .background(Color.white.opacity(0.3))
         .cornerRadius(16)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.white.opacity(0.4), lineWidth: 1)
-        )
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.white.opacity(0.4), lineWidth: 1))
         .shadow(color: Color.black.opacity(0.05), radius: 5, y: 2)
+    }
+}
+
+// 玻璃按钮 (增强边框)
+struct GlassButton: View {
+    let title: String; let isSelected: Bool; let color: Color; let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            Text(title).font(.system(size: 12, weight: isSelected ? .bold : .medium))
+                .foregroundStyle(isSelected ? .white : .primary.opacity(0.8))
+                .lineLimit(1).minimumScaleFactor(0.8)
+                .frame(maxWidth: .infinity).padding(.vertical, 8).contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .background(RoundedRectangle(cornerRadius: 10).fill(isSelected ? color.gradient : Color.white.opacity(0.15).gradient).shadow(color: isSelected ? color.opacity(0.3) : .clear, radius: 5, y: 2))
+        // 【修改】未选中时增加边框透明度和线宽，使其更明显
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(isSelected ? .white.opacity(0.6) : .white.opacity(0.5), lineWidth: isSelected ? 1 : 1.5))
+        .scaleEffect(isSelected ? 1.02 : 1.0)
     }
 }
 
@@ -231,22 +239,6 @@ struct FluidBackground: View {
             }
         }
         .ignoresSafeArea()
-    }
-}
-
-// 玻璃按钮 (保持不变)
-struct GlassButton: View {
-    let title: String; let isSelected: Bool; let color: Color; let action: () -> Void
-    var body: some View {
-        Button(action: action) {
-            Text(title).font(.system(size: 13, weight: isSelected ? .semibold : .regular))
-                .foregroundStyle(isSelected ? .white : .primary).lineLimit(1).minimumScaleFactor(0.8)
-                .frame(maxWidth: .infinity).padding(.vertical, 10).contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .background(RoundedRectangle(cornerRadius: 12).fill(isSelected ? color.gradient : Color.white.opacity(0.2).gradient).shadow(color: isSelected ? color.opacity(0.3) : .clear, radius: 5, y: 2))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(isSelected ? .white.opacity(0.5) : .white.opacity(0.2), lineWidth: 1))
-        .scaleEffect(isSelected ? 1.02 : 1.0)
     }
 }
 
