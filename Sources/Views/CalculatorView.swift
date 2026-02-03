@@ -33,12 +33,14 @@ extension View {
 struct CalculatorView: View {
     @ObservedObject var settings: AppSettings
     
-    @State private var priceInput: Double = 3699
-    @State private var groupDiscountInput: Double = 100
+    // 【修改】改为可选值 (Optional)，默认为 nil，即留空
+    @State private var priceInput: Double? = nil
+    @State private var groupDiscountInput: Double? = nil
+    
     @State private var selectedTier: ProductTier = .midRange
     @State private var selectedChannel: ChannelType = .normal
     
-    // 双列网格 (间距微调)
+    // 双列网格
     let gridColumns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
     
     var body: some View {
@@ -49,7 +51,7 @@ struct CalculatorView: View {
             // 2. 主体内容
             HStack(spacing: 0) {
                 
-                // MARK: - 左侧控制台 (更窄)
+                // MARK: - 左侧控制台
                 VStack(alignment: .leading, spacing: 18) {
                     
                     // 1. 价格输入区
@@ -94,16 +96,17 @@ struct CalculatorView: View {
                     Spacer()
                 }
                 .padding(20)
-                .frame(width: 240) // 【修改】强制固定宽度为 240，非常紧凑
+                .frame(width: 240) // 左侧固定 240
                 
                 // 中间分割线
                 Divider().overlay(Color.white.opacity(0.3))
                 
-                // MARK: - 右侧结果 (自适应拉伸)
+                // MARK: - 右侧结果
                 VStack(spacing: 0) {
+                    // 计算逻辑：如果输入为空，则视为 0 进行计算
                     let result = PriceCalculator.calculate(
-                        originalPrice: priceInput,
-                        groupDiscountInput: groupDiscountInput,
+                        originalPrice: priceInput ?? 0,
+                        groupDiscountInput: groupDiscountInput ?? 0,
                         tier: selectedTier,
                         channel: selectedChannel,
                         settings: settings
@@ -130,9 +133,9 @@ struct CalculatorView: View {
                             .foregroundStyle(.secondary)
                             .padding(.top, 8)
                         
-                        // 【修改】超大数字 + 超粗体 (Heavy)
+                        // 超大数字
                         Text(result.groupPrice, format: .number.precision(.fractionLength(2)))
-                            .font(.system(size: 84, weight: .heavy, design: .rounded)) // 字体加大且加粗
+                            .font(.system(size: 84, weight: .heavy, design: .rounded))
                             .contentTransition(.numericText())
                             .foregroundStyle(
                                 LinearGradient(
@@ -141,7 +144,7 @@ struct CalculatorView: View {
                                     endPoint: .bottom
                                 )
                             )
-                            .shadow(color: .white.opacity(0.8), radius: 2, x: 0, y: 1) // 增强高光
+                            .shadow(color: .white.opacity(0.8), radius: 2, x: 0, y: 1)
                             .lineLimit(1)
                             .minimumScaleFactor(0.4)
                             .padding(.horizontal)
@@ -180,7 +183,7 @@ struct CalculatorView: View {
                         .padding(24)
                     }
                 }
-                .frame(minWidth: 320, maxWidth: .infinity)
+                .frame(minWidth: 240, maxWidth: .infinity) // 【修改】最小宽度设为 240 (与左侧一致)
                 .background(.ultraThinMaterial.opacity(0.5))
             }
         }
@@ -189,18 +192,22 @@ struct CalculatorView: View {
 
 // MARK: - 组件升级
 
-// 独立的输入卡片
+// 独立的输入卡片 (支持可选值)
 struct InputCard: View {
-    let title: String; @Binding var value: Double; let color: Color
+    let title: String
+    @Binding var value: Double? // 【修改】绑定可选类型
+    let color: Color
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title).font(.caption).foregroundStyle(.secondary).padding(.leading, 2)
-            // 稍微缩小字体以适应更窄的卡片
+            
+            // 使用 TextField 绑定可选值，placeholder 设为 0
             TextField("0", value: $value, format: .number.grouping(.never))
                 .font(.system(size: 32, weight: .semibold, design: .rounded))
                 .foregroundStyle(color).textFieldStyle(.plain)
         }
-        .padding(12) // 减少内边距
+        .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.white.opacity(0.3))
         .cornerRadius(16)
@@ -209,7 +216,7 @@ struct InputCard: View {
     }
 }
 
-// 玻璃按钮 (增强边框)
+// 玻璃按钮 (保持不变)
 struct GlassButton: View {
     let title: String; let isSelected: Bool; let color: Color; let action: () -> Void
     var body: some View {
@@ -221,7 +228,6 @@ struct GlassButton: View {
         }
         .buttonStyle(.plain)
         .background(RoundedRectangle(cornerRadius: 10).fill(isSelected ? color.gradient : Color.white.opacity(0.15).gradient).shadow(color: isSelected ? color.opacity(0.3) : .clear, radius: 5, y: 2))
-        // 【修改】未选中时增加边框透明度和线宽，使其更明显
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(isSelected ? .white.opacity(0.6) : .white.opacity(0.5), lineWidth: isSelected ? 1 : 1.5))
         .scaleEffect(isSelected ? 1.02 : 1.0)
     }
