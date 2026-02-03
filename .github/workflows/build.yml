@@ -1,5 +1,3 @@
-name: Build macOS App
-
 on:
   push:
     branches: [ "main" ]
@@ -21,22 +19,32 @@ jobs:
     - name: Create App Bundle
       run: |
         APP_NAME="GreePricePro"
-        # 1. 手动创建 .app 文件夹结构
+        
+        # 1. 创建 App 结构
         mkdir -p build/$APP_NAME.app/Contents/MacOS
         mkdir -p build/$APP_NAME.app/Contents/Resources
         
-        # 2. 查找编译好的二进制文件 (忽略中间文件，只找 release 目录下的最终产物)
-        BINARY_PATH=$(find .build -type f -name "$APP_NAME" | grep "release" | head -n 1)
+        # 2. 定位二进制文件 (增加容错逻辑)
+        # 优先查找通用构建路径
+        BINARY_PATH="./.build/apple/Products/Release/$APP_NAME"
         
-        if [ -z "$BINARY_PATH" ]; then
-          echo "Error: Binary not found!"
+        if [ ! -f "$BINARY_PATH" ]; then
+            echo "Standard path not found, searching..."
+            # 暴力搜索 .build 目录下名为 GreePricePro 的可执行文件
+            BINARY_PATH=$(find .build -name "$APP_NAME" -type f -perm +0111 | grep -v "\.o$" | head -n 1)
+        fi
+        
+        if [ -z "$BINARY_PATH" ] || [ ! -f "$BINARY_PATH" ]; then
+          echo "Error: Binary not found in .build directory!"
+          # 列出目录结构以便调试
+          find .build -maxdepth 4
           exit 1
         else
           echo "Found binary at: $BINARY_PATH"
           cp "$BINARY_PATH" "build/$APP_NAME.app/Contents/MacOS/"
         fi
 
-        # 3. 创建 Info.plist (这是 App 能被 macOS 识别的关键)
+        # 3. 创建 Info.plist
         cat <<PLIST > build/$APP_NAME.app/Contents/Info.plist
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
