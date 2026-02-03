@@ -4,16 +4,20 @@ struct CalculatorView: View {
     @ObservedObject var settings: AppSettings
     
     // 输入状态
-    @State private var priceInput: Double = 3699  // 官方指导价
-    @State private var groupDiscountInput: Double = 100 // 团购优惠
+    @State private var priceInput: Double = 3699
+    @State private var groupDiscountInput: Double = 100
     @State private var selectedTier: ProductTier = .midRange
     @State private var selectedChannel: ChannelType = .normal
+    
+    // 折叠状态控制
+    @State private var isTierExpanded: Bool = true
+    @State private var isChannelExpanded: Bool = true
     
     var body: some View {
         GeometryReader { geometry in
             HStack(spacing: 0) {
                 // MARK: - 左侧控制台
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 16) {
                     
                     // 1. 价格输入组
                     VStack(alignment: .leading, spacing: 12) {
@@ -27,7 +31,7 @@ struct CalculatorView: View {
                         .padding(12)
                         .background(RoundedRectangle(cornerRadius: 12).fill(Color(nsColor: .controlBackgroundColor)))
                         
-                        // 团购优惠 (新增)
+                        // 团购优惠
                         VStack(alignment: .leading, spacing: 4) {
                             Text("团购优惠金额 (¥)").font(.caption).foregroundColor(.blue)
                             TextField("0", value: $groupDiscountInput, format: .number.grouping(.never))
@@ -41,25 +45,38 @@ struct CalculatorView: View {
                     
                     Divider()
                     
-                    // 2. 档位选择
-                    VStack(alignment: .leading, spacing: 10) {
-                        Label("机型档次", systemImage: "air.conditioner.horizontal").font(.headline)
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 90))], spacing: 8) {
+                    // 2. 机型档次 (可折叠)
+                    DisclosureGroup(isExpanded: $isTierExpanded) {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 85))], spacing: 8) {
                             ForEach(ProductTier.allCases) { tier in
-                                SelectableButton(title: tier.rawValue, isSelected: selectedTier == tier, color: .gray) { withAnimation(.snappy) { selectedTier = tier } }
+                                SelectableButton(title: tier.rawValue, isSelected: selectedTier == tier, color: .gray) {
+                                    withAnimation(.snappy) { selectedTier = tier }
+                                }
                             }
                         }
+                        .padding(.top, 8)
+                    } label: {
+                        Label("机型档次", systemImage: "air.conditioner.horizontal")
+                            .font(.headline)
+                            .foregroundColor(.primary)
                     }
                     
-                    // 3. 渠道选择
-                    VStack(alignment: .leading, spacing: 10) {
-                        Label("销售渠道", systemImage: "network").font(.headline)
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 120))], spacing: 8) {
+                    // 3. 销售渠道 (可折叠)
+                    DisclosureGroup(isExpanded: $isChannelExpanded) {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 110))], spacing: 8) {
                             ForEach(ChannelType.allCases) { channel in
-                                SelectableButton(title: channel.rawValue, isSelected: selectedChannel == channel, color: .orange) { withAnimation(.snappy) { selectedChannel = channel } }
+                                SelectableButton(title: channel.rawValue, isSelected: selectedChannel == channel, color: .orange) {
+                                    withAnimation(.snappy) { selectedChannel = channel }
+                                }
                             }
                         }
+                        .padding(.top, 8)
+                    } label: {
+                        Label("销售渠道", systemImage: "network")
+                            .font(.headline)
+                            .foregroundColor(.primary)
                     }
+                    
                     Spacer()
                 }
                 .padding(20)
@@ -89,8 +106,9 @@ struct CalculatorView: View {
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                         
-                        Text(result.groupPrice, format: .currency(code: "CNY"))
-                            .font(.system(size: 52, weight: .heavy, design: .rounded))
+                        // 修改点：只显示纯数字，去掉了 ¥ 符号
+                        Text(result.groupPrice, format: .number.precision(.fractionLength(2)))
+                            .font(.system(size: 60, weight: .heavy, design: .rounded)) // 稍微调大了字号
                             .contentTransition(.numericText())
                             .foregroundColor(.primary)
                         
@@ -100,7 +118,7 @@ struct CalculatorView: View {
                                 Text("理论最大优惠")
                                     .font(.system(size: 10))
                                     .opacity(0.7)
-                                Text("¥\(result.maxPotentialDiscount, specifier: "%.1f")")
+                                Text(result.maxPotentialDiscount, format: .number.precision(.fractionLength(1)))
                                     .font(.callout).bold()
                             }
                             
@@ -110,7 +128,7 @@ struct CalculatorView: View {
                                 Text("本单实际利润")
                                     .font(.system(size: 10))
                                     .opacity(0.7)
-                                Text("¥\(result.actualProfit, specifier: "%.1f")")
+                                Text(result.actualProfit, format: .number.precision(.fractionLength(1)))
                                     .font(.title3).bold()
                                     .foregroundColor(result.actualProfit >= 0 ? .green : .red)
                             }
