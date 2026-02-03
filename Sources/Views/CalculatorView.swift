@@ -1,15 +1,3 @@
-非常抱歉，我之前保留了 maxWidth: .infinity，导致在大窗口下右侧面板会自动填充所有剩余空间，看起来确实太宽了。
-
-这一次，我们将采取**“固定尺寸卡片”**的策略：
-
-锁定宽度：左侧固定 240，右侧固定 260（稍微宽一点点以容纳大字体，但视觉上几乎一样宽）。
-
-居中悬浮：整个计算器面板将固定在屏幕中央，不再随窗口拉伸而变形。即使你把窗口拉得再大，计算器本身也保持精致紧凑，就像桌面上的一个实体小摆件。
-
-请运行下面的脚本更新 CalculatorView.swift：
-
-Bash
-cat <<'EOF' > Sources/Views/CalculatorView.swift
 import SwiftUI
 
 // MARK: - Liquid Glass 风格修饰符
@@ -58,12 +46,12 @@ struct CalculatorView: View {
             // 1. 底层流体背景
             FluidBackground()
             
-            // 2. 主体内容 (整体居中)
+            // 2. 主体内容
             VStack {
                 Spacer()
                 HStack(spacing: 0) {
                     
-                    // MARK: - 左侧控制台 (固定宽 240)
+                    // MARK: - 左侧控制台
                     VStack(alignment: .leading, spacing: 18) {
                         // 1. 价格输入
                         VStack(spacing: 12) {
@@ -106,12 +94,12 @@ struct CalculatorView: View {
                         Spacer()
                     }
                     .padding(20)
-                    .frame(width: 240) // 【固定宽度】左侧
+                    .frame(width: 240)
                     
                     // 中间分割线
                     Divider().overlay(Color.white.opacity(0.3))
                     
-                    // MARK: - 右侧结果 (固定宽 260)
+                    // MARK: - 右侧结果
                     VStack(spacing: 0) {
                         let result = PriceCalculator.calculate(
                             originalPrice: priceInput ?? 0,
@@ -120,6 +108,9 @@ struct CalculatorView: View {
                             channel: selectedChannel,
                             settings: settings
                         )
+                        
+                        // 计算利润率 (防止除以0)
+                        let profitMargin = result.subsidyPrice > 0 ? result.actualProfit / result.subsidyPrice : 0
                         
                         // 顶部结果展示
                         VStack(spacing: 8) {
@@ -141,7 +132,7 @@ struct CalculatorView: View {
                                 .foregroundStyle(.secondary)
                                 .padding(.top, 8)
                             
-                            // 超大数字 (缩放适配)
+                            // 超大数字
                             Text(result.groupPrice, format: .number.precision(.fractionLength(2)))
                                 .font(.system(size: 80, weight: .heavy, design: .rounded))
                                 .contentTransition(.numericText())
@@ -154,14 +145,17 @@ struct CalculatorView: View {
                                 )
                                 .shadow(color: .white.opacity(0.8), radius: 2, x: 0, y: 1)
                                 .lineLimit(1)
-                                .minimumScaleFactor(0.4) // 允许缩放以适应较窄的宽度
+                                .minimumScaleFactor(0.4)
                                 .padding(.horizontal)
                             
-                            // 利润仪表盘
+                            // 利润仪表盘 (新增利润率)
                             HStack(spacing: 0) {
                                 ProfitCard(title: "最大优惠", value: result.maxPotentialDiscount, color: .primary)
                                 Divider().frame(height: 30)
                                 ProfitCard(title: "实际利润", value: result.actualProfit, color: result.actualProfit >= 0 ? .green : .red)
+                                Divider().frame(height: 30)
+                                // 新增：利润率显示
+                                ProfitPercentCard(title: "利润率", value: profitMargin, color: profitMargin >= 0 ? .blue : .red)
                             }
                             .padding(12)
                             .background(.white.opacity(0.4))
@@ -191,12 +185,12 @@ struct CalculatorView: View {
                             .padding(24)
                         }
                     }
-                    .frame(width: 260) // 【固定宽度】右侧
+                    .frame(width: 260)
                     .background(.ultraThinMaterial.opacity(0.5))
                 }
-                .fixedSize(horizontal: true, vertical: false) // 防止被 Spacer 挤压
-                .cornerRadius(24) // 整体圆角
-                .shadow(color: .black.opacity(0.15), radius: 20, y: 10) // 整体阴影
+                .fixedSize(horizontal: true, vertical: false)
+                .cornerRadius(24)
+                .shadow(color: .black.opacity(0.15), radius: 20, y: 10)
                 
                 Spacer()
             }
@@ -204,8 +198,9 @@ struct CalculatorView: View {
     }
 }
 
-// MARK: - 组件 (保持不变)
+// MARK: - 组件
 
+// 独立的输入卡片
 struct InputCard: View {
     let title: String; @Binding var value: Double?; let color: Color
     var body: some View {
@@ -253,12 +248,25 @@ struct FluidBackground: View {
     }
 }
 
+// 利润卡片
 struct ProfitCard: View {
     let title: String; let value: Double; let color: Color
     var body: some View {
         VStack(spacing: 2) {
             Text(title).font(.caption2).foregroundStyle(.secondary)
             Text(value, format: .number.precision(.fractionLength(1))).font(.headline).foregroundStyle(color)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+// 新增：百分比卡片
+struct ProfitPercentCard: View {
+    let title: String; let value: Double; let color: Color
+    var body: some View {
+        VStack(spacing: 2) {
+            Text(title).font(.caption2).foregroundStyle(.secondary)
+            Text(value, format: .percent.precision(.fractionLength(2))).font(.headline).foregroundStyle(color)
         }
         .frame(maxWidth: .infinity)
     }
