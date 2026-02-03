@@ -2,17 +2,17 @@ import SwiftUI
 
 // MARK: - 风格修饰符
 struct LiquidGlassCard: ViewModifier {
-    var cornerRadius: CGFloat = 24
+    var cornerRadius: CGFloat = 20 //稍微减小一点圆角，更贴合窗口
     func body(content: Content) -> some View {
         content
             .background(.ultraThinMaterial)
             .background(Color.white.opacity(0.05))
+            // 移除阴影，因为现在卡片就是窗口本身，窗口系统自带阴影
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            .shadow(color: Color.black.opacity(0.2), radius: 20, x: 0, y: 10)
             .overlay(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous).stroke(LinearGradient(colors: [.white.opacity(0.6), .white.opacity(0.1)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1))
     }
 }
-extension View { func liquidGlassStyle(cornerRadius: CGFloat = 24) -> some View { modifier(LiquidGlassCard(cornerRadius: cornerRadius)) } }
+extension View { func liquidGlassStyle(cornerRadius: CGFloat = 20) -> some View { modifier(LiquidGlassCard(cornerRadius: cornerRadius)) } }
 
 struct CalculatorView: View {
     @ObservedObject var settings: AppSettings
@@ -29,8 +29,14 @@ struct CalculatorView: View {
             
             // === 主内容 ===
             HStack(spacing: 0) {
-                // 左侧
+                
+                // === 左侧 ===
                 VStack(alignment: .leading, spacing: 16) {
+                    
+                    // 【核心修改】增加顶部留白，给红绿灯(Traffic Lights)腾出位置
+                    // macOS 红绿灯高度大约是 20-30pt
+                    Spacer().frame(height: 32)
+                    
                     VStack(spacing: 10) {
                         InputCard(title: "官方指导价", value: $priceInput, color: .primary)
                         InputCard(title: "团购优惠", value: $groupDiscountInput, color: .indigo)
@@ -54,23 +60,28 @@ struct CalculatorView: View {
                             }
                         }
                     }
+                    Spacer() // 底部填充
                 }
                 .padding(20)
                 .frame(width: 230)
                 
-                Rectangle().fill(LinearGradient(colors: [.clear, .black.opacity(0.1), .clear], startPoint: .top, endPoint: .bottom)).frame(width: 1).padding(.vertical, 20)
+                // 分割线
+                Rectangle().fill(LinearGradient(colors: [.clear, .black.opacity(0.1), .clear], startPoint: .top, endPoint: .bottom)).frame(width: 1).padding(.vertical, 0)
                 
-                // 右侧
+                // === 右侧 ===
                 VStack(spacing: 0) {
                     let result = PriceCalculator.calculate(originalPrice: priceInput ?? 0, groupDiscountInput: groupDiscountInput ?? 0, tier: selectedTier, channel: selectedChannel, settings: settings)
                     let profitMargin = result.subsidyPrice > 0 ? result.actualProfit / result.subsidyPrice : 0
                     
+                    // 右侧顶部也稍微加点留白保持对齐，或者利用Spacer
+                    Spacer().frame(height: 32)
+
                     VStack(spacing: 6) {
                         HStack {
                             Text("国补后基准").font(.system(size: 10)).foregroundStyle(.secondary)
                             Text(result.subsidyPrice, format: .currency(code: "CNY")).font(.system(size: 10, weight: .bold)).monospacedDigit()
                         }
-                        .padding(.horizontal, 8).padding(.vertical, 3).background(Color.black.opacity(0.03)).clipShape(Capsule()).padding(.top, 20)
+                        .padding(.horizontal, 8).padding(.vertical, 3).background(Color.black.opacity(0.03)).clipShape(Capsule())
                         
                         Text("跟团到手价").font(.system(size: 13, weight: .medium)).foregroundStyle(.secondary).padding(.top, 4)
                         
@@ -111,25 +122,21 @@ struct CalculatorView: View {
                 .frame(width: 250)
             }
             .frame(width: 480)
-            .liquidGlassStyle()
-            // 【重要】给顶部留一点点空间，防止红绿灯遮挡左上角内容 (虽然现在左上角是文字，稍微低一点好看)
-            .padding(.top, 10) 
-            .padding(20)
-            // 确保背景可点击，以便窗口拖拽生效
-            .contentShape(Rectangle()) 
+            .liquidGlassStyle() // 应用玻璃外壳
+            // 【核心修改】移除了外层的 padding(20)，让卡片直接贴合窗口边缘
+            .ignoresSafeArea()
             
             // === 设置按钮 (悬浮) ===
             Button(action: { showSettings = true }) {
                 Image(systemName: "gearshape.fill")
                     .font(.system(size: 14))
-                    .foregroundStyle(.secondary.opacity(0.8))
+                    .foregroundStyle(.secondary.opacity(0.5)) // 稍微淡一点，不抢眼
                     .padding(8)
-                    .background(.ultraThinMaterial)
-                    .clipShape(Circle())
-                    .overlay(Circle().stroke(Color.white.opacity(0.3), lineWidth: 1))
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .padding(28)
+            .padding(.top, 16) // 与左侧红绿灯对齐
+            .padding(.trailing, 16)
         }
         .sheet(isPresented: $showSettings) {
             SettingsView(settings: settings)
@@ -145,3 +152,4 @@ struct ProfitCard: View { let title: String; let value: Double; let color: Color
 struct ProfitPercentCard: View { let title: String; let value: Double; let color: Color; var body: some View { VStack(spacing: 1) { Text(title).font(.system(size: 9)).foregroundStyle(.secondary); Text(value, format: .percent.precision(.fractionLength(2))).font(.system(size: 12, weight: .bold)).foregroundStyle(color) }.frame(maxWidth: .infinity) } }
 struct GlassSection<Content: View>: View { let title: String; let icon: String; let color: Color; @ViewBuilder let content: Content; var body: some View { VStack(alignment: .leading, spacing: 8) { HStack { Image(systemName: icon).font(.system(size: 10)).foregroundStyle(color); Text(title).font(.system(size: 11, weight: .bold)).foregroundStyle(.secondary) }; VStack(spacing: 8) { content }.padding(10).background(Color.white.opacity(0.2)).cornerRadius(10) } } }
 struct DetailRow: View { let label: String; let value: Double?; let color: Color; var body: some View { HStack { Text(label).font(.system(size: 11)).foregroundStyle(.secondary); Spacer(); if let v = value { Text(v, format: .currency(code: "CNY")).font(.system(size: 11, weight: .medium, design: .monospaced)).foregroundStyle(color) } } } }
+EOF
